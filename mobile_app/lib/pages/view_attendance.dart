@@ -17,7 +17,7 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
   bool showAbsenteesOnly = false;
   List<Map<String, dynamic>> scannedStudentData = [];
   List<Map<String, dynamic>> filteredData = [];
-  int totalStrength = 568;
+  int totalStrength = 566;
   int presentCount = 0;
   int absentCount = 0;
   bool isLoading = false; // Track loading state

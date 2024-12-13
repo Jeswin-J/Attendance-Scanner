@@ -1,5 +1,6 @@
 package com.pec.attendance.service;
 
+import com.pec.attendance.enums.Venue;
 import com.pec.attendance.exceptions.*;
 import com.pec.attendance.model.Attendance;
 import com.pec.attendance.model.Student;
@@ -7,10 +8,14 @@ import com.pec.attendance.repository.AttendanceRepository;
 import com.pec.attendance.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -117,4 +122,48 @@ public class AttendanceService implements ServiceInterface {
             throw new GenericServiceException("Error while fetching absentee records for date: " + date, e);
         }
     }
+
+    @Override
+    public void saveStudentsFromCsv(MultipartFile file) throws Exception {
+        List<Student> students = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            String line;
+            int lineNumber = 0;
+
+            while ((line = br.readLine()) != null) {
+                if (lineNumber == 0) {
+                    // Skip header line
+                    lineNumber++;
+                    continue;
+                }
+
+                String[] data = line.split(",");
+
+                String registerNumber = data[0].trim();
+
+                // Check if student already exists based on register number
+                Optional<Student> existingStudent = studentRepository.findByRegisterNumber(registerNumber);
+                if (existingStudent.isPresent()) {
+                    // Skip this record if the student already exists in the database
+                    continue;
+                }
+
+                // Create new student object
+                Student student = new Student()
+                        .setRegisterNumber(registerNumber)
+                        .setRollNumber(data[1].trim())
+                        .setName(data[2].trim())
+                        .setYear(data[3].trim())
+                        .setDepartment(data[4].trim())
+                        .setSection(data[5].trim())
+                        .setVenue(Venue.valueOf(data[6].trim()));
+
+                students.add(student);
+            }
+        }
+        // Save all valid students
+        studentRepository.saveAll(students);
+    }
+
+
 }
