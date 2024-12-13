@@ -38,6 +38,7 @@ dependencies:
   mobile_scanner: ^6.0.2
   fluttertoast: ^8.2.8
   http: ^1.2.2
+  intl: ^0.20.1
 
 dev_dependencies:
   flutter_test:

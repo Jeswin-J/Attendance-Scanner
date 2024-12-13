@@ -1,3 +1,4 @@
+import 'package:attendance_scanner/pages/view_attendance.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -11,9 +12,22 @@ class ScanIdPage extends StatefulWidget {
 }
 
 class _ScanIdPageState extends State<ScanIdPage> {
+  MobileScannerController cameraController = MobileScannerController(); // Controller to manage the camera
+
+  @override
+  void initState() {
+    super.initState();
+    cameraController.start(); // Start the camera when the page is loaded
+  }
+
+  @override
+  void dispose() {
+    cameraController.stop(); // Stop the camera when the page is disposed
+    super.dispose();
+  }
+
   void _addScanResult(String code) async {
     try {
-
       final responseData = await ApiService.checkIn(code);
 
       final statusCode = responseData['statusCode'];
@@ -69,18 +83,18 @@ class _ScanIdPageState extends State<ScanIdPage> {
           IconButton(
             icon: const Icon(Icons.list),
             onPressed: () {
-              // You can re-enable this part when you implement the separate endpoint for attendance viewing
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => ViewAttendancePage(),
-              //   ),
-              // );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ViewAttendancePage(),
+                ),
+              );
             },
           ),
         ],
       ),
       body: MobileScanner(
+        controller: cameraController, // Use the controller to manage the camera
         onDetect: (barcodeCapture) {
           final barcodes = barcodeCapture.barcodes;
           for (final barcode in barcodes) {
