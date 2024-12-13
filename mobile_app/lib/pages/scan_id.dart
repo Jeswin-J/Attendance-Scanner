@@ -1,7 +1,6 @@
 import 'package:attendance_scanner/pages/view_attendance.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import '../services/api_service.dart';
 
 class ScanIdPage extends StatefulWidget {
@@ -12,73 +11,141 @@ class ScanIdPage extends StatefulWidget {
 }
 
 class _ScanIdPageState extends State<ScanIdPage> {
-  MobileScannerController cameraController = MobileScannerController(); // Controller to manage the camera
+  MobileScannerController cameraController = MobileScannerController();
+  String? toastMessage;
 
   @override
   void initState() {
     super.initState();
-    cameraController.start(); // Start the camera when the page is loaded
+    try {
+      cameraController.start(); // Start the camera
+    } catch (e) {
+      print("Error starting camera: $e");
+    }
   }
 
   @override
   void dispose() {
-    cameraController.stop(); // Stop the camera when the page is disposed
+    cameraController.stop(); // Stop the camera when the widget is disposed
     super.dispose();
+  }
+
+  void _showToast(String message) {
+    setState(() {
+      toastMessage = message;
+    });
+
+    // Hide the toast after a few seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          toastMessage = null;
+        });
+      }
+    });
   }
 
   void _addScanResult(String code) async {
     try {
       final responseData = await ApiService.checkIn(code);
-
       final statusCode = responseData['statusCode'];
       final message = responseData['message'];
 
       if (statusCode == 0) {
-        Fluttertoast.showToast(
-          msg: "Success: $code",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: Colors.green,
-          textColor: Colors.white,
-          fontSize: 16.0,
-        );
+        _showToast("Success: $code");
       } else if (statusCode == -1) {
-        Fluttertoast.showToast(
-          msg: "Attendance Marked: $code",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: Colors.yellow.shade200,
-          textColor: Colors.black,
-          fontSize: 16.0,
-        );
+        _showToast("Attendance Marked: $code");
       } else {
-        Fluttertoast.showToast(
-          msg: "Error: $code",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: Colors.red,
-          textColor: Colors.white,
-          fontSize: 16.0,
-        );
+        _showToast("Error: $code");
       }
     } catch (e) {
-      // If there is an exception, show a red error toast
-      Fluttertoast.showToast(
-        msg: "An error occurred: $e",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
+      _showToast("An error occurred: $e");
     }
   }
+
+  // Method to handle manual roll number entry
+  void _manualCheckIn(BuildContext context) {
+    TextEditingController rollNumberController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.0), // Reduced border radius
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Close Button ("X")
+                Align(
+                  alignment: Alignment.topRight,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context); // Close the dialog
+                    },
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Input Field
+                TextField(
+                  controller: rollNumberController,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter Roll Number',
+                  ),
+                  keyboardType: TextInputType.text,
+                ),
+                const SizedBox(height: 20),
+                // "Mark Attendance" Button
+                SizedBox(
+                  width: double.infinity, // Make the button full-width
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final rollNumber = rollNumberController.text.trim();
+                      if (rollNumber.isNotEmpty) {
+                        _addScanResult(rollNumber);
+                        Navigator.pop(context); // Close the dialog
+                      } else {
+                        _showToast("Please enter a roll number");
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent, // Transparent background
+                      shadowColor: Colors.transparent, // No shadow
+                      side: BorderSide(color: Colors.green), // Green border
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6.0), // Rounded button
+                      ),
+                    ),
+                    child: const Text(
+                      'Mark Attendance',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green, // Green text color
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan ID'),
+        title: const Text('Scan ID Card'),
         actions: [
           IconButton(
             icon: const Icon(Icons.list),
@@ -93,18 +160,74 @@ class _ScanIdPageState extends State<ScanIdPage> {
           ),
         ],
       ),
-      body: MobileScanner(
-        controller: cameraController, // Use the controller to manage the camera
-        onDetect: (barcodeCapture) {
-          final barcodes = barcodeCapture.barcodes;
-          for (final barcode in barcodes) {
-            final String? code = barcode.rawValue;
-            if (code != null) {
-              _addScanResult(code);
-              break;
-            }
-          }
-        },
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                Container(
+                  height: MediaQuery.of(context).size.height * 4 / 5,
+                  child: MobileScanner(
+                    controller: cameraController,
+                    onDetect: (barcodeCapture) {
+                      final barcodes = barcodeCapture.barcodes;
+                      for (final barcode in barcodes) {
+                        final String? code = barcode.rawValue;
+                        if (code != null) {
+                          _addScanResult(code); // Process the barcode
+                          break; // Stop after the first barcode is found
+                        }
+                      }
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: ElevatedButton(
+                    onPressed: () => _manualCheckIn(context), // Trigger manual check-in dialog
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue, // Set button background color to blue
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(10.00)),
+                      ),
+                      minimumSize: const Size(double.infinity, 50), // Make button width fill the available space
+                    ),
+                    child: const Text(
+                      'Manual Attendance',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white, // Set text color to white
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Custom toast message at the top inside the camera container
+          if (toastMessage != null)
+            Positioned(
+              top: 20,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(12.0),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                child: Text(
+                  toastMessage!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
