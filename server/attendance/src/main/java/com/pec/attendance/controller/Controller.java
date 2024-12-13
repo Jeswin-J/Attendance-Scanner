@@ -35,7 +35,7 @@ public class Controller {
     }
 
     @PostMapping("/checkIn")
-    public ResponseEntity<Response<Attendance>> checkIn(@RequestBody MarkAttendanceRequest request){
+    public synchronized ResponseEntity<Response<Attendance>> checkIn(@RequestBody MarkAttendanceRequest request){
 
         if(attendanceService.hasAttendanceForToday(request.getRollNumber())){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(

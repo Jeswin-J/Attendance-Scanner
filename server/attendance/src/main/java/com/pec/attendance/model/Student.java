@@ -15,6 +15,9 @@ public class Student {
     private String name;
 
     @Column(nullable = false, unique = true)
+    private String registerNumber;
+
+    @Column(nullable = false, unique = true)
     private String rollNumber;
 
     @Column(nullable = false)
@@ -90,6 +93,15 @@ public class Student {
 
     public Student setVenue(Venue venue) {
         this.venue = venue;
+        return this;
+    }
+
+    public String getRegisterNumber() {
+        return registerNumber;
+    }
+
+    public Student setRegisterNumber(String registerNumber) {
+        this.registerNumber = registerNumber;
         return this;
     }
 }
