@@ -6,4 +6,6 @@ import org.springframework.stereotype.Service;
 @Service
 public interface ServiceInterface {
     Attendance markAttendance(String rollNumber);
+
+    boolean hasAttendanceForToday(String rollNumber);
 }

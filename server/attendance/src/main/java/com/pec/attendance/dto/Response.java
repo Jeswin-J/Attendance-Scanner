@@ -4,6 +4,7 @@ package com.pec.attendance.dto;
 public class Response<T> {
     private boolean success;
     private String message;
+    private Integer statusCode;
     private T data;
 
     public boolean isSuccess() {
@@ -32,4 +33,14 @@ public class Response<T> {
         this.data = data;
         return this;
     }
+
+    public Integer getStatusCode() {
+        return statusCode;
+    }
+
+    public Response<T> setStatusCode(Integer statusCode) {
+        this.statusCode = statusCode;
+        return this;
+    }
+
 }

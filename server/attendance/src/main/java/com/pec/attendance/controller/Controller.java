@@ -25,21 +25,32 @@ public class Controller {
                 new Response<String>()
                         .setSuccess(true)
                         .setMessage("System Working Fine!")
+                        .setStatusCode(0)
                         .setData("Hello World!")
         );
     }
 
     @PostMapping("/checkIn")
     public ResponseEntity<Response<Attendance>> checkIn(@RequestBody MarkAttendanceRequest request){
-        Attendance info = attendanceService.markAttendance(request.getRollNumber());
 
-        System.out.println("HERE!!!!");
+        if(attendanceService.hasAttendanceForToday(request.getRollNumber())){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new Response<Attendance>()
+                            .setSuccess(false)
+                            .setMessage("Attendance Marked Already!")
+                            .setStatusCode(-1)
+                            .setData(null)
+            );
+        }
+
+        Attendance info = attendanceService.markAttendance(request.getRollNumber());
 
         if(info != null){
             return ResponseEntity.status(HttpStatus.OK).body(
                     new Response<Attendance>()
                             .setSuccess(true)
                             .setMessage("Attendance Marked Successfully!")
+                            .setStatusCode(0)
                             .setData(info)
             );
         }
@@ -48,6 +59,7 @@ public class Controller {
                 new Response<Attendance>()
                         .setSuccess(false)
                         .setMessage("Invalid Attendance Request!")
+                        .setStatusCode(1)
                         .setData(null)
         );
     }
