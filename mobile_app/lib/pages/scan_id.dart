@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import '../services/api_service.dart';
 import 'view_attendance.dart';
 
 class ScanIdPage extends StatefulWidget {
@@ -11,20 +12,34 @@ class ScanIdPage extends StatefulWidget {
 }
 
 class _ScanIdPageState extends State<ScanIdPage> {
-  final List<String> scannedIds = [];
+  final List<Map<String, dynamic>> scannedStudentData = [];
 
-  void _addScanResult(String code) {
-    setState(() {
-      scannedIds.add(code);
-    });
-    Fluttertoast.showToast(
-      msg: "ID Scanned: $code",
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.BOTTOM,
-      backgroundColor: Colors.green,
-      textColor: Colors.white,
-      fontSize: 16.0,
-    );
+  void _addScanResult(String code) async {
+    final responseData = await ApiService.checkIn(code);
+
+    if (responseData != null && responseData['success']) {
+      setState(() {
+        scannedStudentData.add(responseData['data']['student']);
+      });
+
+      Fluttertoast.showToast(
+        msg: "Scanned Id: $code",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    } else {
+      Fluttertoast.showToast(
+        msg: "Failed to mark attendance",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    }
   }
 
   @override
@@ -39,7 +54,9 @@ class _ScanIdPageState extends State<ScanIdPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ViewAttendancePage(scannedIds: scannedIds),
+                  builder: (context) => ViewAttendancePage(
+                    scannedStudentData: scannedStudentData,
+                  ),
                 ),
               );
             },
@@ -51,7 +68,7 @@ class _ScanIdPageState extends State<ScanIdPage> {
           final barcodes = barcodeCapture.barcodes;
           for (final barcode in barcodes) {
             final String? code = barcode.rawValue;
-            if (code != null && !scannedIds.contains(code)) {
+            if (code != null && !scannedStudentData.any((student) => student['rollNumber'] == code)) {
               _addScanResult(code);
               break;
             }

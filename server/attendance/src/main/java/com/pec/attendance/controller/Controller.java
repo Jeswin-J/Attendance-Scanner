@@ -33,6 +33,8 @@ public class Controller {
     public ResponseEntity<Response<Attendance>> checkIn(@RequestBody MarkAttendanceRequest request){
         Attendance info = attendanceService.markAttendance(request.getRollNumber());
 
+        System.out.println("HERE!!!!");
+
         if(info != null){
             return ResponseEntity.status(HttpStatus.OK).body(
                     new Response<Attendance>()
