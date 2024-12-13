@@ -53,8 +53,9 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
       String venueDetails = '';
       venueAbsentees.forEach((venue, absentees) {
         venueDetails += '''
+        
 **************************
-Venue: $venue
+$venue
 **************************
 ${absentees.join('\n')}
 ''';
@@ -317,13 +318,17 @@ $venueDetails
                                   ),
                                 ),
                                 const SizedBox(width: 20),
-                                Text(
-                                  student['venue'],
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black87,
+                                Flexible(
+                                  child: Text(
+                                    student['venue'],
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
                                   ),
-                                ),
+                                )
                               ],
                             ),
                           ],

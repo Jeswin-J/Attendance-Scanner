@@ -1,5 +1,6 @@
 package com.pec.attendance.service;
 
+import com.pec.attendance.exceptions.*;
 import com.pec.attendance.model.Attendance;
 import com.pec.attendance.model.Student;
 import com.pec.attendance.repository.AttendanceRepository;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class AttendanceService implements ServiceInterface {
@@ -22,13 +24,21 @@ public class AttendanceService implements ServiceInterface {
     @Autowired
     private StudentRepository studentRepository;
 
+    private Timestamp getStartOfDay(LocalDate date) {
+        return Timestamp.valueOf(date.atStartOfDay());
+    }
+
+    private Timestamp getEndOfDay(LocalDate date) {
+        return Timestamp.valueOf(date.atTime(23, 59, 59));
+    }
+
     @Override
     public Attendance markAttendance(String rollNumber) {
 
         Optional<Student> studentOptional = studentRepository.findByRollNumber(rollNumber);
 
         if (studentOptional.isEmpty()) {
-            return null;
+            throw new StudentNotFoundException(rollNumber);
         }
 
         Student student = studentOptional.get();
@@ -40,14 +50,18 @@ public class AttendanceService implements ServiceInterface {
         Optional<Attendance> existingAttendance = attendanceRepository.findByStudentAndTimestampBetween(student, startOfDay, endOfDay);
 
         if (existingAttendance.isPresent()) {
-            return null;
+            throw new AttendanceNotFoundException(rollNumber);
         }
 
-        Attendance attendanceRecord = new Attendance()
-                .setStudent(student)
-                .setTimeStamp(new Timestamp(System.currentTimeMillis()));
+        try {
+            Attendance attendanceRecord = new Attendance()
+                    .setStudent(student)
+                    .setTimeStamp(new Timestamp(System.currentTimeMillis()));
 
-        return attendanceRepository.save(attendanceRecord);
+            return attendanceRepository.save(attendanceRecord);
+        } catch (Exception e) {
+            throw new GenericServiceException("Error while saving attendance for roll number: " + rollNumber, e);
+        }
     }
 
     @Override
@@ -55,7 +69,7 @@ public class AttendanceService implements ServiceInterface {
         Optional<Student> studentOptional = studentRepository.findByRollNumber(rollNumber);
 
         if (studentOptional.isEmpty()) {
-            return false;
+            throw new StudentNotFoundException(rollNumber);
         }
 
         Student student = studentOptional.get();
@@ -71,33 +85,36 @@ public class AttendanceService implements ServiceInterface {
 
     @Override
     public List<Student> attendanceRecord(LocalDate date) {
+        try {
+            Timestamp startOfDay = getStartOfDay(date);
+            Timestamp endOfDay = getEndOfDay(date);
 
-        Timestamp startOfDay = Timestamp.valueOf(date.atStartOfDay());
-        Timestamp endOfDay = Timestamp.valueOf(date.atTime(23, 59, 59, 999999999));
+            List<Attendance> attendanceList = attendanceRepository.findByTimestampBetween(startOfDay, endOfDay);
 
-        List<Attendance> attendanceList = attendanceRepository.findByTimestampBetween(startOfDay, endOfDay);
-
-        return attendanceList.stream()
-                .map(Attendance::getStudent)
-                .toList();
+            return attendanceList.stream()
+                    .map(Attendance::getStudent)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new GenericServiceException("Error while fetching attendance records for date: " + date, e);
+        }
     }
 
     @Override
     public List<Student> absenteeRecord(LocalDate date) {
+        try {
+            Timestamp startOfDay = getStartOfDay(date);
+            Timestamp endOfDay = getEndOfDay(date);
 
-        Timestamp startOfDay = Timestamp.valueOf(date.atStartOfDay());
-        Timestamp endOfDay = Timestamp.valueOf(date.atTime(23, 59, 59, 999999999));
+            List<Attendance> attendanceList = attendanceRepository.findByTimestampBetween(startOfDay, endOfDay);
+            List<Student> presentStudents = attendanceList.stream()
+                    .map(Attendance::getStudent)
+                    .collect(Collectors.toList());
 
-        List<Student> allStudents = studentRepository.findAll();
-        List<Attendance> attendanceList = attendanceRepository.findByTimestampBetween(startOfDay, endOfDay);
-
-        List<Student> presentStudents = attendanceList.stream()
-                .map(Attendance::getStudent)
-                .toList();
-
-        return allStudents.stream()
-                .filter(student -> !presentStudents.contains(student))
-                .toList();
+            return studentRepository.findAll().stream()
+                    .filter(student -> !presentStudents.contains(student))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new GenericServiceException("Error while fetching absentee records for date: " + date, e);
+        }
     }
-
 }
