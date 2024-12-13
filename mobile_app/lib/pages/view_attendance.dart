@@ -12,10 +12,17 @@ class ViewAttendancePage extends StatefulWidget {
 class _ViewAttendancePageState extends State<ViewAttendancePage> {
   DateTime selectedDate = DateTime.now();
   String formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
-  String? selectedDepartment;
-  String? selectedVenue;
+  String searchQuery = '';
   List<Map<String, dynamic>> scannedStudentData = [];
   List<Map<String, dynamic>> filteredData = [];
+
+  final Map<String, String> venueMap = {
+    'Idea Lab': 'IDEA_LAB',
+    'Genius Lounge': 'GENIUS_LOUNGE',
+    'Coders Den': 'CODERS_DEN',
+    'Thinkers Corner': 'THINKERS_CORNER',
+    'Creative Chambers': 'CREATIVE_CHAMBERS',
+  };
 
   Future<void> _fetchAttendanceData() async {
     try {
@@ -32,9 +39,14 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
   void _applyFilters() {
     setState(() {
       filteredData = scannedStudentData.where((student) {
-        bool matchesDepartment = selectedDepartment == null || student['department'] == selectedDepartment;
-        bool matchesVenue = selectedVenue == null || student['venue'] == selectedVenue;
-        return matchesDepartment && matchesVenue;
+        // Normalize both search query and fields (replace underscores with spaces)
+        final searchLower = searchQuery.toLowerCase().replaceAll('_', ' ');
+        final department = (student['department']?.toLowerCase().replaceAll('_', ' ') ?? '');
+        final venue = (student['venue']?.toLowerCase().replaceAll('_', ' ') ?? '');
+        final section = (student['section']?.toLowerCase().replaceAll('_', ' ') ?? '');
+
+        // Check if the search query matches any of the fields
+        return department.contains(searchLower) || venue.contains(searchLower) || section.contains(searchLower);
       }).toList();
     });
   }
@@ -76,50 +88,19 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButton<String>(
-                    value: selectedDepartment,
-                    hint: const Text("Select Department"),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        selectedDepartment = newValue;
-                        _applyFilters();
-                      });
-                    },
-                    items: ['ADS', 'AIML', 'CSBS', 'CSE', 'ECE', 'EEE', 'IT', 'MECH']
-                        .map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // Venue Filter
-                Expanded(
-                  child: DropdownButton<String>(
-                    value: selectedVenue,
-                    hint: const Text("Select Venue"),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        selectedVenue = newValue;
-                        _applyFilters();
-                      });
-                    },
-                    items: ['IDEA_LAB', 'Genius Lounge', 'Coders Den', 'Thinkers Corner', 'Creative Chambers']
-                        .map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                  _applyFilters(); // Apply filter as the user types
+                });
+              },
+              decoration: const InputDecoration(
+                labelText: 'Search & Filter',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
             ),
           ),
 
@@ -140,18 +121,65 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                     itemBuilder: (context, index) {
                       final student = filteredData[index];
                       return Card(
-                        margin: const EdgeInsets.all(8.0),
-                        child: ListTile(
-                          title: Text(student['name']),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Roll Number: ${student['rollNumber']}'),
-                              Text('Year: ${student['year']}'),
-                              Text('Department: ${student['department']}'),
-                              Text('Section: ${student['section']}'),
-                              Text('Venue: ${student['venue']}'),
-                            ],
+                        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                        elevation: 5,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
+                            child: ListTile(
+                              titleAlignment: ListTileTitleAlignment.center,
+                              contentPadding: const EdgeInsets.all(16),
+                              title: Text(
+                                student['name'],
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      Text(
+                                        student['rollNumber'],
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 20),
+                                      Text(
+                                        '${student['year']} ${student['department']} ${student['section']}',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 20),
+                                      Text(
+                                        student['venue'],
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       );
