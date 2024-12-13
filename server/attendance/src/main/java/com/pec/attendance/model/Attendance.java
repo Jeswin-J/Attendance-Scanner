@@ -7,35 +7,43 @@ import java.sql.Timestamp;
 @Entity
 @Table(name = "attendance")
 public class Attendance {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long attendanceId;
 
-    @Column(nullable = false, unique = true)
-    private String rollNumber;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "studentId", nullable = false)
+    private Student student;
 
     @Column(nullable = false)
-    private Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+    private Timestamp timestamp;
 
-    public Long getId() {
-        return id;
+
+    public Long getAttendanceId() {
+        return attendanceId;
     }
 
-    public Attendance setId(Long id) {
-        this.id = id;
-        return this;
-    }
 
-    public String getRollNumber() {
-        return rollNumber;
-    }
-
-    public Attendance setRollNumber(String rollNumber) {
-        this.rollNumber = rollNumber;
-        return this;
+    public void setAttendanceId(Long attendanceId) {
+        this.attendanceId = attendanceId;
     }
 
     public Timestamp getTimestamp() {
         return timestamp;
+    }
+
+    public Attendance setTimeStamp(Timestamp timestamp) {
+        this.timestamp = timestamp;
+        return this;
+    }
+
+    public Student getStudent() {
+        return student;
+    }
+
+    public Attendance setStudent(Student student) {
+        this.student = student;
+        return this;
     }
 }
