@@ -9,12 +9,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class Controller {
 
     private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -94,5 +96,15 @@ public class Controller {
                         .setStatusCode(0)
                         .setData(studentsList)
         );
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
+        try {
+            attendanceService.saveStudentsFromCsv(file);
+            return ResponseEntity.ok("File uploaded and data saved successfully!");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to upload file: " + e.getMessage());
+        }
     }
 }

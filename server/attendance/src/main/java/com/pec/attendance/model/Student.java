@@ -27,7 +27,7 @@ public class Student {
     private String department;
 
     @Column(nullable = false)
-    private Character section;
+    private String section;
 
     @Column(nullable = true)
     @Enumerated(EnumType.STRING)
@@ -78,11 +78,11 @@ public class Student {
         return this;
     }
 
-    public Character getSection() {
+    public String getSection() {
         return section;
     }
 
-    public Student setSection(Character section) {
+    public Student setSection(String section) {
         this.section = section;
         return this;
     }
