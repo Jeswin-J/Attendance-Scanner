@@ -15,15 +15,11 @@ public class Attendance {
     private String rollNumber;
 
     @Column(nullable = false)
-    private Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+    private Timestamp timestamp;
+
 
     public Long getId() {
         return id;
-    }
-
-    public Attendance setId(Long id) {
-        this.id = id;
-        return this;
     }
 
     public String getRollNumber() {
@@ -37,5 +33,10 @@ public class Attendance {
 
     public Timestamp getTimestamp() {
         return timestamp;
+    }
+
+    public Attendance setTimeStamp(Timestamp timestamp) {
+        this.timestamp = timestamp;
+        return this;
     }
 }
