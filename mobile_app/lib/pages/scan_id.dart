@@ -1,6 +1,7 @@
 import 'package:attendance_scanner/pages/view_attendance.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/api_service.dart';
 
 class ScanIdPage extends StatefulWidget {
@@ -17,16 +18,30 @@ class _ScanIdPageState extends State<ScanIdPage> {
   @override
   void initState() {
     super.initState();
-    try {
-      cameraController.start(); // Start the camera
-    } catch (e) {
-      print("Error starting camera: $e");
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    PermissionStatus status = await Permission.camera.request();
+    if (!status.isGranted) {
+      _showToast("Camera permission is required.");
+    } else {
+      try {
+        cameraController.start(); // Start the camera
+      } catch (e) {
+        print("Error starting camera: $e");
+        _showToast("Failed to start the camera. Please check permissions.");
+      }
     }
   }
 
   @override
   void dispose() {
-    cameraController.stop(); // Stop the camera when the widget is disposed
+    try {
+      cameraController.stop(); // Stop the camera when the widget is disposed
+    } catch (e) {
+      print("Error stopping camera: $e");
+    }
     super.dispose();
   }
 
@@ -48,18 +63,24 @@ class _ScanIdPageState extends State<ScanIdPage> {
   void _addScanResult(String code) async {
     try {
       final responseData = await ApiService.checkIn(code);
-      final statusCode = responseData['statusCode'];
-      final message = responseData['message'];
+      if (responseData == null) {
+        _showToast("No response from the server");
+        return;
+      }
+
+      final statusCode = responseData['statusCode'] ?? -1;
+      final message = responseData['message'] ?? "Unknown error";
 
       if (statusCode == 0) {
         _showToast("Success: $code");
       } else if (statusCode == -1) {
-        _showToast("Attendance Marked: $code");
+        _showToast("Attendance Already Marked: $code");
       } else {
-        _showToast("Error: $code");
+        _showToast("Error: $message");
       }
     } catch (e) {
       _showToast("An error occurred: $e");
+      print("Error during check-in: $e");  // Log the error for debugging
     }
   }
 
@@ -83,7 +104,9 @@ class _ScanIdPageState extends State<ScanIdPage> {
                   alignment: Alignment.topRight,
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.pop(context); // Close the dialog
+                      if (mounted) {
+                        Navigator.pop(context); // Close the dialog
+                      }
                     },
                     child: const Icon(
                       Icons.close,
@@ -109,7 +132,9 @@ class _ScanIdPageState extends State<ScanIdPage> {
                       final rollNumber = rollNumberController.text.trim();
                       if (rollNumber.isNotEmpty) {
                         _addScanResult(rollNumber);
-                        Navigator.pop(context); // Close the dialog
+                        if (mounted) {
+                          Navigator.pop(context); // Close the dialog
+                        }
                       } else {
                         _showToast("Please enter a roll number");
                       }
@@ -139,7 +164,6 @@ class _ScanIdPageState extends State<ScanIdPage> {
       },
     );
   }
-
 
   @override
   Widget build(BuildContext context) {

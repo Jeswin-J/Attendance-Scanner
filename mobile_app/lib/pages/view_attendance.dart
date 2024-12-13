@@ -20,24 +20,43 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
   int totalStrength = 568;
   int presentCount = 0;
   int absentCount = 0;
+  bool isLoading = false; // Track loading state
 
+  // Fetch Attendance Data
   Future<void> _fetchAttendanceData() async {
+    setState(() {
+      isLoading = true; // Start loading
+    });
+
     try {
       final response = await ApiService.fetchAttendance(formattedDate);
-      setState(() {
-        scannedStudentData = response;
-        presentCount = response.length;
-        absentCount = totalStrength - presentCount;
-        _applyFilters();
-      });
+      if (response != null) {
+        setState(() {
+          scannedStudentData = response;
+          presentCount = response.length;
+          absentCount = totalStrength - presentCount;
+          _applyFilters();
+        });
+      } else {
+        _showErrorMessage('No data found.');
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      _showErrorMessage('Error: $e');
+    } finally {
+      setState(() {
+        isLoading = false; // Stop loading
+      });
     }
   }
 
+  // Generate Attendance Report
   Future<String> _generateAttendanceReport() async {
     try {
       final absenteesData = await ApiService.fetchAbsentees(formattedDate);
+
+      if (absenteesData.isEmpty) {
+        return 'No absentees found for the selected date.';
+      }
 
       Map<String, List<String>> venueAbsentees = {};
       for (var student in absenteesData) {
@@ -81,19 +100,17 @@ $venueDetails
     }
   }
 
-
-
-  void _applyFilters() async {
+  // Apply Filters
+  void _applyFilters() {
     if (showAbsenteesOnly) {
-      try {
-        final response = await ApiService.fetchAbsentees(formattedDate);
+      ApiService.fetchAbsentees(formattedDate).then((response) {
         setState(() {
           filteredData = response;
           absentCount = response.length;
         });
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
+      }).catchError((e) {
+        _showErrorMessage('Error applying filters: $e');
+      });
     } else {
       setState(() {
         filteredData = scannedStudentData.where((student) {
@@ -107,7 +124,12 @@ $venueDetails
     }
   }
 
+  // Show Error Message
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
 
+  // Select Date
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -144,6 +166,10 @@ $venueDetails
       ),
       body: Column(
         children: [
+          // Loading Indicator
+          if (isLoading)
+            const Center(child: CircularProgressIndicator()),
+
           // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -260,8 +286,6 @@ $venueDetails
             ),
           ),
 
-
-
           // List of Students
           Expanded(
             child: filteredData.isEmpty
@@ -286,7 +310,7 @@ $venueDetails
                         titleAlignment: ListTileTitleAlignment.center,
                         contentPadding: const EdgeInsets.all(16),
                         title: Text(
-                          student['name'],
+                          student['name'] ?? 'No Name',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -303,7 +327,7 @@ $venueDetails
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 Text(
-                                  student['rollNumber'],
+                                  student['rollNumber'] ?? 'Unknown',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     color: Colors.black87,
@@ -311,7 +335,7 @@ $venueDetails
                                 ),
                                 const SizedBox(width: 20),
                                 Text(
-                                  '${student['year']} ${student['department']} ${student['section']}',
+                                  '${student['year'] ?? 'N/A'} ${student['department'] ?? 'Unknown'} ${student['section'] ?? 'N/A'}',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     color: Colors.black87,
@@ -320,7 +344,7 @@ $venueDetails
                                 const SizedBox(width: 20),
                                 Flexible(
                                   child: Text(
-                                    student['venue'],
+                                    student['venue'] ?? 'Unknown Venue',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       color: Colors.black87,
@@ -328,7 +352,7 @@ $venueDetails
                                     overflow: TextOverflow.ellipsis,
                                     maxLines: 1,
                                   ),
-                                )
+                                ),
                               ],
                             ),
                           ],
@@ -341,41 +365,6 @@ $venueDetails
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String label, dynamic value, Color color) {
-    return Card(
-      elevation: 4,
-      color: color,
-      child: Container(
-        width: 90,
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value.toString(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }
