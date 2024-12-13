@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class ViewAttendancePage extends StatelessWidget {
-  const ViewAttendancePage({super.key});
+  final List<String> scannedIds;
+
+  const ViewAttendancePage({super.key, required this.scannedIds});
 
   @override
   Widget build(BuildContext context) {
@@ -17,11 +19,14 @@ class ViewAttendancePage extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(
-        child: Text(
-          'Attendance Records Displayed Here',
-          style: TextStyle(fontSize: 18),
-        ),
+      body: ListView.builder(
+        itemCount: scannedIds.length,
+        itemBuilder: (context, index) {
+          return ListTile(
+            leading: const Icon(Icons.person),
+            title: Text('Student ID: ${scannedIds[index]}'),
+          );
+        },
       ),
     );
   }
