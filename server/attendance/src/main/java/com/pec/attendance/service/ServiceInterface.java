@@ -14,4 +14,6 @@ public interface ServiceInterface {
     boolean hasAttendanceForToday(String rollNumber);
 
     List<Student> attendanceRecord(LocalDate date);
+
+    List<Student> absenteeRecord(LocalDate date);
 }

@@ -6,8 +6,6 @@ import com.pec.attendance.repository.AttendanceRepository;
 import com.pec.attendance.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -83,4 +81,23 @@ public class AttendanceService implements ServiceInterface {
                 .map(Attendance::getStudent)
                 .toList();
     }
+
+    @Override
+    public List<Student> absenteeRecord(LocalDate date) {
+
+        Timestamp startOfDay = Timestamp.valueOf(date.atStartOfDay());
+        Timestamp endOfDay = Timestamp.valueOf(date.atTime(23, 59, 59, 999999999));
+
+        List<Student> allStudents = studentRepository.findAll();
+        List<Attendance> attendanceList = attendanceRepository.findByTimestampBetween(startOfDay, endOfDay);
+
+        List<Student> presentStudents = attendanceList.stream()
+                .map(Attendance::getStudent)
+                .toList();
+
+        return allStudents.stream()
+                .filter(student -> !presentStudents.contains(student))
+                .toList();
+    }
+
 }

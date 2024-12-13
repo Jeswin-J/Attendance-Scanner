@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 import 'package:attendance_scanner/services/api_service.dart';
 
 class ViewAttendancePage extends StatefulWidget {
@@ -16,7 +17,7 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
   bool showAbsenteesOnly = false;
   List<Map<String, dynamic>> scannedStudentData = [];
   List<Map<String, dynamic>> filteredData = [];
-  int totalStrength = 0;
+  int totalStrength = 568;
   int presentCount = 0;
   int absentCount = 0;
 
@@ -25,8 +26,7 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
       final response = await ApiService.fetchAttendance(formattedDate);
       setState(() {
         scannedStudentData = response;
-        totalStrength = response.length; // Assuming this is the total strength
-        presentCount = response.where((student) => student['status'] == 'present').length;
+        presentCount = response.length;
         absentCount = totalStrength - presentCount;
         _applyFilters();
       });
@@ -35,21 +35,77 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
     }
   }
 
-  void _applyFilters() {
-    setState(() {
-      filteredData = scannedStudentData.where((student) {
-        final matchesSearchQuery = searchQuery.isEmpty ||
-            (student['department']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
-            (student['venue']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
-            (student['section']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
+  Future<String> _generateAttendanceReport() async {
+    try {
+      final absenteesData = await ApiService.fetchAbsentees(formattedDate);
 
-        final matchesAbsenteesFilter =
-            !showAbsenteesOnly || (student['status'] == 'absent'); // Filter absentees
+      Map<String, List<String>> venueAbsentees = {};
+      for (var student in absenteesData) {
+        String venue = student['venue'] ?? 'Unknown Venue';
+        String registerNumber = student['registerNumber'];
 
-        return matchesSearchQuery && matchesAbsenteesFilter;
-      }).toList();
-    });
+        if (!venueAbsentees.containsKey(venue)) {
+          venueAbsentees[venue] = [];
+        }
+        venueAbsentees[venue]!.add(registerNumber);
+      }
+
+      String venueDetails = '';
+      venueAbsentees.forEach((venue, absentees) {
+        venueDetails += '''
+**************************
+Venue: $venue
+**************************
+${absentees.join('\n')}
+''';
+      });
+
+      return '''
+🌷🌷🌷🌷🌷🌷🌷🌷
+QSpider Attendance Details:
+🌷🌷🌷🌷🌷🌷🌷🌷
+
+Date                       : $formattedDate
+Department          : CSE
+Total Strength      : $totalStrength
+No. of present      : $presentCount
+No. of absentees : ${totalStrength - presentCount}
+
+Venue wise attendance details:
+
+$venueDetails
+''';
+    } catch (e) {
+      return 'Error generating attendance report: $e';
+    }
   }
+
+
+
+  void _applyFilters() async {
+    if (showAbsenteesOnly) {
+      try {
+        final response = await ApiService.fetchAbsentees(formattedDate);
+        setState(() {
+          filteredData = response;
+          absentCount = response.length;
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } else {
+      setState(() {
+        filteredData = scannedStudentData.where((student) {
+          final matchesSearchQuery = searchQuery.isEmpty ||
+              (student['department']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
+              (student['venue']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
+              (student['section']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
+          return matchesSearchQuery;
+        }).toList();
+      });
+    }
+  }
+
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
@@ -121,6 +177,17 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                   },
                 ),
                 const Text('Show Absentees'),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.copy, color: Colors.blue),
+                  onPressed: () async {
+                    final String report = await _generateAttendanceReport();
+                    Clipboard.setData(ClipboardData(text: report));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Attendance report copied to clipboard!')),
+                    );
+                  },
+                ),
               ],
             ),
           ),
