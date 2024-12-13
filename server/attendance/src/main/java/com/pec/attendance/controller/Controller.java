@@ -81,4 +81,18 @@ public class Controller {
                         .setData(studentsList)
         );
     }
+
+    @GetMapping("/absentees/{date}")
+    public ResponseEntity<Response<List<Student>>> viewAbsentees(@PathVariable("date") String dateString){
+        LocalDate date = LocalDate.parse(dateString, formatter);
+        List<Student> studentsList = attendanceService.absenteeRecord(date);
+
+        return ResponseEntity.status(HttpStatus.OK).body(
+                new Response<List<Student>>()
+                        .setSuccess(true)
+                        .setMessage("Attendance Record dated " + date +  "!")
+                        .setStatusCode(0)
+                        .setData(studentsList)
+        );
+    }
 }

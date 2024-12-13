@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 import 'package:attendance_scanner/services/api_service.dart';
 
 class ViewAttendancePage extends StatefulWidget {
@@ -16,41 +17,119 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
   bool showAbsenteesOnly = false;
   List<Map<String, dynamic>> scannedStudentData = [];
   List<Map<String, dynamic>> filteredData = [];
-  int totalStrength = 0;
+  int totalStrength = 568;
   int presentCount = 0;
   int absentCount = 0;
+  bool isLoading = false; // Track loading state
 
+  // Fetch Attendance Data
   Future<void> _fetchAttendanceData() async {
+    setState(() {
+      isLoading = true; // Start loading
+    });
+
     try {
       final response = await ApiService.fetchAttendance(formattedDate);
-      setState(() {
-        scannedStudentData = response;
-        totalStrength = response.length; // Assuming this is the total strength
-        presentCount = response.where((student) => student['status'] == 'present').length;
-        absentCount = totalStrength - presentCount;
-        _applyFilters();
-      });
+      if (response != null) {
+        setState(() {
+          scannedStudentData = response;
+          presentCount = response.length;
+          absentCount = totalStrength - presentCount;
+          _applyFilters();
+        });
+      } else {
+        _showErrorMessage('No data found.');
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      _showErrorMessage('Error: $e');
+    } finally {
+      setState(() {
+        isLoading = false; // Stop loading
+      });
     }
   }
 
-  void _applyFilters() {
-    setState(() {
-      filteredData = scannedStudentData.where((student) {
-        final matchesSearchQuery = searchQuery.isEmpty ||
-            (student['department']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
-            (student['venue']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
-            (student['section']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
+  // Generate Attendance Report
+  Future<String> _generateAttendanceReport() async {
+    try {
+      final absenteesData = await ApiService.fetchAbsentees(formattedDate);
 
-        final matchesAbsenteesFilter =
-            !showAbsenteesOnly || (student['status'] == 'absent'); // Filter absentees
+      if (absenteesData.isEmpty) {
+        return 'No absentees found for the selected date.';
+      }
 
-        return matchesSearchQuery && matchesAbsenteesFilter;
-      }).toList();
-    });
+      Map<String, List<String>> venueAbsentees = {};
+      for (var student in absenteesData) {
+        String venue = student['venue'] ?? 'Unknown Venue';
+        String registerNumber = student['registerNumber'];
+
+        if (!venueAbsentees.containsKey(venue)) {
+          venueAbsentees[venue] = [];
+        }
+        venueAbsentees[venue]!.add(registerNumber);
+      }
+
+      String venueDetails = '';
+      venueAbsentees.forEach((venue, absentees) {
+        venueDetails += '''
+        
+**************************
+$venue
+**************************
+${absentees.join('\n')}
+''';
+      });
+
+      return '''
+🌷🌷🌷🌷🌷🌷🌷🌷
+QSpider Attendance Details:
+🌷🌷🌷🌷🌷🌷🌷🌷
+
+Date                       : $formattedDate
+Department          : CSE
+Total Strength      : $totalStrength
+No. of present      : $presentCount
+No. of absentees : ${totalStrength - presentCount}
+
+Venue wise attendance details:
+
+$venueDetails
+''';
+    } catch (e) {
+      return 'Error generating attendance report: $e';
+    }
   }
 
+  // Apply Filters
+  void _applyFilters() {
+    if (showAbsenteesOnly) {
+      ApiService.fetchAbsentees(formattedDate).then((response) {
+        setState(() {
+          filteredData = response;
+          absentCount = response.length;
+        });
+      }).catchError((e) {
+        _showErrorMessage('Error applying filters: $e');
+      });
+    } else {
+      setState(() {
+        filteredData = scannedStudentData.where((student) {
+          final matchesSearchQuery = searchQuery.isEmpty ||
+              (student['department']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
+              (student['venue']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
+              (student['section']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
+          return matchesSearchQuery;
+        }).toList();
+      });
+    }
+  }
+
+  // Show Error Message
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // Select Date
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -87,6 +166,10 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
       ),
       body: Column(
         children: [
+          // Loading Indicator
+          if (isLoading)
+            const Center(child: CircularProgressIndicator()),
+
           // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -121,6 +204,17 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                   },
                 ),
                 const Text('Show Absentees'),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.copy, color: Colors.blue),
+                  onPressed: () async {
+                    final String report = await _generateAttendanceReport();
+                    Clipboard.setData(ClipboardData(text: report));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Attendance report copied to clipboard!')),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -192,8 +286,6 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
             ),
           ),
 
-
-
           // List of Students
           Expanded(
             child: filteredData.isEmpty
@@ -218,7 +310,7 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                         titleAlignment: ListTileTitleAlignment.center,
                         contentPadding: const EdgeInsets.all(16),
                         title: Text(
-                          student['name'],
+                          student['name'] ?? 'No Name',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -235,7 +327,7 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 Text(
-                                  student['rollNumber'],
+                                  student['rollNumber'] ?? 'Unknown',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     color: Colors.black87,
@@ -243,18 +335,22 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
                                 ),
                                 const SizedBox(width: 20),
                                 Text(
-                                  '${student['year']} ${student['department']} ${student['section']}',
+                                  '${student['year'] ?? 'N/A'} ${student['department'] ?? 'Unknown'} ${student['section'] ?? 'N/A'}',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     color: Colors.black87,
                                   ),
                                 ),
                                 const SizedBox(width: 20),
-                                Text(
-                                  student['venue'],
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black87,
+                                Flexible(
+                                  child: Text(
+                                    student['venue'] ?? 'Unknown Venue',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
                                   ),
                                 ),
                               ],
@@ -269,41 +365,6 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String label, dynamic value, Color color) {
-    return Card(
-      elevation: 4,
-      color: color,
-      child: Container(
-        width: 90,
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value.toString(),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }

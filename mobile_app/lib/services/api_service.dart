@@ -6,7 +6,6 @@ class ApiService {
 
   static Future<Map<String, dynamic>> checkIn(String rollNumber) async {
     final url = Uri.parse('$baseUrl/checkIn');
-
     final Map<String, String> requestBody = {
       'rollNumber': rollNumber,
     };
@@ -18,15 +17,34 @@ class ApiService {
         body: json.encode(requestBody),
       );
 
-      return json.decode(response.body);
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to check-in. Status code: ${response.statusCode}');
+      }
     } catch (e) {
-      print('Error during POST request: $e');
-      return {
-        'success': false,
-        'message': 'Error occurred during request.',
-        'statusCode': -1,
-        'data': null,
-      };
+      if (e is http.ClientException) {
+        return {
+          'success': false,
+          'message': 'Network error occurred. Please check your connection.',
+          'statusCode': -1,
+          'data': null,
+        };
+      } else if (e is FormatException) {
+        return {
+          'success': false,
+          'message': 'Failed to parse response data.',
+          'statusCode': -1,
+          'data': null,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'An unexpected error occurred.',
+          'statusCode': -1,
+          'data': null,
+        };
+      }
     }
   }
 
@@ -51,10 +69,37 @@ class ApiService {
           };
         }).toList();
       } else {
-        throw Exception('Failed to load attendance data');
+        throw Exception('Failed to load attendance data. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Failed to load attendance data: $e');
+      if (e is http.ClientException) {
+        throw Exception('Network error occurred. Please check your connection.');
+      } else if (e is FormatException) {
+        throw Exception('Failed to parse the response data.');
+      } else {
+        throw Exception('An unexpected error occurred while fetching attendance data.');
+      }
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchAbsentees(String date) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/absentees/$date'));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data['data']);
+      } else {
+        throw Exception('Failed to fetch absentees. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is http.ClientException) {
+        throw Exception('Network error occurred. Please check your connection.');
+      } else if (e is FormatException) {
+        throw Exception('Failed to parse the response data.');
+      } else {
+        throw Exception('An unexpected error occurred while fetching absentees.');
+      }
     }
   }
 }
