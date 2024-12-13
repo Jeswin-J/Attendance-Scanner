@@ -13,23 +13,22 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
   DateTime selectedDate = DateTime.now();
   String formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
   String searchQuery = '';
+  bool showAbsenteesOnly = false;
   List<Map<String, dynamic>> scannedStudentData = [];
   List<Map<String, dynamic>> filteredData = [];
-
-  final Map<String, String> venueMap = {
-    'Idea Lab': 'IDEA_LAB',
-    'Genius Lounge': 'GENIUS_LOUNGE',
-    'Coders Den': 'CODERS_DEN',
-    'Thinkers Corner': 'THINKERS_CORNER',
-    'Creative Chambers': 'CREATIVE_CHAMBERS',
-  };
+  int totalStrength = 0;
+  int presentCount = 0;
+  int absentCount = 0;
 
   Future<void> _fetchAttendanceData() async {
     try {
       final response = await ApiService.fetchAttendance(formattedDate);
       setState(() {
         scannedStudentData = response;
-        filteredData = List.from(scannedStudentData);
+        totalStrength = response.length; // Assuming this is the total strength
+        presentCount = response.where((student) => student['status'] == 'present').length;
+        absentCount = totalStrength - presentCount;
+        _applyFilters();
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -39,14 +38,15 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
   void _applyFilters() {
     setState(() {
       filteredData = scannedStudentData.where((student) {
-        // Normalize both search query and fields (replace underscores with spaces)
-        final searchLower = searchQuery.toLowerCase().replaceAll('_', ' ');
-        final department = (student['department']?.toLowerCase().replaceAll('_', ' ') ?? '');
-        final venue = (student['venue']?.toLowerCase().replaceAll('_', ' ') ?? '');
-        final section = (student['section']?.toLowerCase().replaceAll('_', ' ') ?? '');
+        final matchesSearchQuery = searchQuery.isEmpty ||
+            (student['department']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
+            (student['venue']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
+            (student['section']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
 
-        // Check if the search query matches any of the fields
-        return department.contains(searchLower) || venue.contains(searchLower) || section.contains(searchLower);
+        final matchesAbsenteesFilter =
+            !showAbsenteesOnly || (student['status'] == 'absent'); // Filter absentees
+
+        return matchesSearchQuery && matchesAbsenteesFilter;
       }).toList();
     });
   }
@@ -87,13 +87,14 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
       ),
       body: Column(
         children: [
+          // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               onChanged: (value) {
                 setState(() {
                   searchQuery = value;
-                  _applyFilters(); // Apply filter as the user types
+                  _applyFilters();
                 });
               },
               decoration: const InputDecoration(
@@ -104,92 +105,205 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
             ),
           ),
 
+          // Show Absentees Checkbox
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Checkbox(
+                  value: showAbsenteesOnly,
+                  onChanged: (value) {
+                    setState(() {
+                      showAbsenteesOnly = value!;
+                      _applyFilters();
+                    });
+                  },
+                ),
+                const Text('Show Absentees'),
+              ],
+            ),
+          ),
+
+          // Statistics Card
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Card(
+              elevation: 4,
+              color: Colors.blueAccent.shade200,
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Present Count
+                        Column(
+                          children: [
+                            const Text(
+                              'Total Present',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$presentCount',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Attendance Percentage
+                        Column(
+                          children: [
+                            const Text(
+                              'Attendance %',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              totalStrength > 0
+                                  ? ((presentCount / totalStrength) * 100).toStringAsFixed(1)
+                                  : '0',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+
+
+          // List of Students
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: ApiService.fetchAttendance(formattedDate),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No data available'));
-                } else {
-                  final scannedStudentData = snapshot.data!;
-                  return ListView.builder(
-                    itemCount: filteredData.length,
-                    itemBuilder: (context, index) {
-                      final student = filteredData[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                        elevation: 5,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                            ),
-                            child: ListTile(
-                              titleAlignment: ListTileTitleAlignment.center,
-                              contentPadding: const EdgeInsets.all(16),
-                              title: Text(
-                                student['name'],
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      Text(
-                                        student['rollNumber'],
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 20),
-                                      Text(
-                                        '${student['year']} ${student['department']} ${student['section']}',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 20),
-                                      Text(
-                                        student['venue'],
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
+            child: filteredData.isEmpty
+                ? const Center(child: Text('No data available'))
+                : ListView.builder(
+              itemCount: filteredData.length,
+              itemBuilder: (context, index) {
+                final student = filteredData[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                  elevation: 5,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                      ),
+                      child: ListTile(
+                        titleAlignment: ListTileTitleAlignment.center,
+                        contentPadding: const EdgeInsets.all(16),
+                        title: Text(
+                          student['name'],
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
                         ),
-                      );
-                    },
-                  );
-                }
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Text(
+                                  student['rollNumber'],
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(width: 20),
+                                Text(
+                                  '${student['year']} ${student['department']} ${student['section']}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(width: 20),
+                                Text(
+                                  student['venue'],
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, dynamic value, Color color) {
+    return Card(
+      elevation: 4,
+      color: color,
+      child: Container(
+        width: 90,
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value.toString(),
+              style: const TextStyle(
+                fontSize: 20,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
