@@ -8,13 +8,17 @@ import com.pec.attendance.service.ServiceInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @RestController
 public class Controller {
+
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
 
     @Autowired
     private ServiceInterface attendanceService;
@@ -61,6 +65,20 @@ public class Controller {
                         .setMessage("Invalid Attendance Request!")
                         .setStatusCode(1)
                         .setData(null)
+        );
+    }
+
+    @GetMapping("/{date}")
+    public ResponseEntity<Response<List<Student>>> viewRecordByDate(@PathVariable("date") String dateString){
+        LocalDate date = LocalDate.parse(dateString, formatter);
+        List<Student> studentsList = attendanceService.attendanceRecord(date);
+
+        return ResponseEntity.status(HttpStatus.OK).body(
+                new Response<List<Student>>()
+                        .setSuccess(true)
+                        .setMessage("Attendance Record dated " + date +  "!")
+                        .setStatusCode(0)
+                        .setData(studentsList)
         );
     }
 }

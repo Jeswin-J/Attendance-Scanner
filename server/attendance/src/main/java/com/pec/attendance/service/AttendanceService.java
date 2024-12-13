@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -66,5 +67,18 @@ public class AttendanceService implements ServiceInterface {
         Optional<Attendance> existingAttendance = attendanceRepository.findByStudentAndTimestampBetween(student, startOfDay, endOfDay);
 
         return existingAttendance.isPresent();
+    }
+
+    @Override
+    public List<Student> attendanceRecord(LocalDate date) {
+
+        Timestamp startOfDay = Timestamp.valueOf(date.atStartOfDay());
+        Timestamp endOfDay = Timestamp.valueOf(date.atTime(23, 59, 59, 999999999));
+
+        List<Attendance> attendanceList = attendanceRepository.findByTimestampBetween(startOfDay, endOfDay);
+
+        return attendanceList.stream()
+                .map(Attendance::getStudent)
+                .toList();
     }
 }

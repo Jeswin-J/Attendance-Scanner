@@ -7,8 +7,11 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     Optional<Attendance> findByStudentAndTimestampBetween(Student student, Timestamp startOfDay, Timestamp endOfDay);
+
+    List<Attendance> findByTimestampBetween(Timestamp start, Timestamp end);
 }

@@ -29,4 +29,32 @@ class ApiService {
       };
     }
   }
+
+  static Future<List<Map<String, dynamic>>> fetchAttendance(String date) async {
+    final String url = '$baseUrl/$date';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final List<dynamic> studentsData = responseData['data'];
+
+        return studentsData.map((student) {
+          return {
+            'name': student['name'],
+            'rollNumber': student['rollNumber'],
+            'year': student['year'],
+            'department': student['department'],
+            'section': student['section'],
+            'venue': student['venue'],
+          };
+        }).toList();
+      } else {
+        throw Exception('Failed to load attendance data');
+      }
+    } catch (e) {
+      throw Exception('Failed to load attendance data: $e');
+    }
+  }
 }
