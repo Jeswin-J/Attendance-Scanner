@@ -6,9 +6,10 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "student")
 public class Student {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long studentId;
 
     @Column(nullable = false)
     private String name;
@@ -29,13 +30,13 @@ public class Student {
     @Enumerated(EnumType.STRING)
     private Venue venue;
 
-    public Long getId() {
-        return id;
+    public Long getStudentId() {
+        return studentId;
     }
 
-    public Student setId(Long id) {
-        this.id = id;
-        return this;
+
+    public void setStudentId(Long studentId) {
+        this.studentId = studentId;
     }
 
     public String getName() {
