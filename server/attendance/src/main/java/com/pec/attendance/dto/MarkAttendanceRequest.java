@@ -1,8 +1,15 @@
 package com.pec.attendance.dto;
 
-import lombok.Data;
 
-@Data
 public class MarkAttendanceRequest {
     private String rollNumber;
+
+    public String getRollNumber() {
+        return rollNumber;
+    }
+
+    public MarkAttendanceRequest setRollNumber(String rollNumber) {
+        this.rollNumber = rollNumber;
+        return this;
+    }
 }

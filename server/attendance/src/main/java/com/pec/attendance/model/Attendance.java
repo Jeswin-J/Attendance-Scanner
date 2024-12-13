@@ -1,12 +1,11 @@
 package com.pec.attendance.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
 
 import java.sql.Timestamp;
 
 @Entity
-@Getter
+@Table(name = "attendance")
 public class Attendance {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,11 +17,17 @@ public class Attendance {
     @Column(nullable = false)
     private Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
+    public Long getId() {
+        return id;
+    }
 
-    //Setters
     public Attendance setId(Long id) {
         this.id = id;
         return this;
+    }
+
+    public String getRollNumber() {
+        return rollNumber;
     }
 
     public Attendance setRollNumber(String rollNumber) {
@@ -30,8 +35,7 @@ public class Attendance {
         return this;
     }
 
-    public Attendance setTimestamp(Timestamp timestamp) {
-        this.timestamp = timestamp;
-        return this;
+    public Timestamp getTimestamp() {
+        return timestamp;
     }
 }

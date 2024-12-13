@@ -2,10 +2,9 @@ package com.pec.attendance.model;
 
 import com.pec.attendance.enums.Venue;
 import jakarta.persistence.*;
-import lombok.Getter;
 
 @Entity
-@Getter
+@Table(name = "student")
 public class Student {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
@@ -26,14 +25,21 @@ public class Student {
     @Column(nullable = false)
     private Character section;
 
+    @Column(nullable = true)
     @Enumerated(EnumType.STRING)
     private Venue venue;
 
+    public Long getId() {
+        return id;
+    }
 
-    //Setters
     public Student setId(Long id) {
         this.id = id;
         return this;
+    }
+
+    public String getName() {
+        return name;
     }
 
     public Student setName(String name) {
@@ -41,9 +47,17 @@ public class Student {
         return this;
     }
 
+    public String getRollNumber() {
+        return rollNumber;
+    }
+
     public Student setRollNumber(String rollNumber) {
         this.rollNumber = rollNumber;
         return this;
+    }
+
+    public String getYear() {
+        return year;
     }
 
     public Student setYear(String year) {
@@ -51,14 +65,26 @@ public class Student {
         return this;
     }
 
+    public String getDepartment() {
+        return department;
+    }
+
     public Student setDepartment(String department) {
         this.department = department;
         return this;
     }
 
+    public Character getSection() {
+        return section;
+    }
+
     public Student setSection(Character section) {
         this.section = section;
         return this;
+    }
+
+    public Venue getVenue() {
+        return venue;
     }
 
     public Student setVenue(Venue venue) {
