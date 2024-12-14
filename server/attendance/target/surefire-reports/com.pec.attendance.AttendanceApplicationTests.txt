@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.pec.attendance.AttendanceApplicationTests
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.565 s -- in com.pec.attendance.AttendanceApplicationTests
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.10 s -- in com.pec.attendance.AttendanceApplicationTests
