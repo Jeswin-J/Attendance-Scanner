@@ -229,7 +229,21 @@ class _ScannerPageState extends State<ScannerPage> {
           // Manual Attendance Button
           ElevatedButton(
             onPressed: _showManualAttendanceDialog,
-            child: const Text('Manual Attendance'),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 50),
+              backgroundColor: Colors.blue,  // Set the background color to blue
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,  // Set border radius to zero
+              ),
+            ),
+            child: const Text(
+                'Manual Attendance',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold
+              ),
+            ),
           ),
         ],
       ),

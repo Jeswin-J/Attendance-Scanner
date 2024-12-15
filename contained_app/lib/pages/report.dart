@@ -20,13 +20,9 @@ class _ReportPageState extends State<ReportPage> {
   int totalStrength = 0;
   int presentCount = 0;
   int absentCount = 0;
-  bool isLoading = false; // Track loading state
 
   // Fetch Attendance Data from SQLite
   Future<void> _fetchAttendanceData() async {
-    setState(() {
-      isLoading = true; // Start loading
-    });
 
     try {
       // Fetch all students
@@ -53,10 +49,6 @@ class _ReportPageState extends State<ReportPage> {
       _applyFilters();
     } catch (e) {
       _showErrorMessage('Error: $e');
-    } finally {
-      setState(() {
-        isLoading = false; // Stop loading
-      });
     }
   }
 
@@ -81,7 +73,7 @@ class _ReportPageState extends State<ReportPage> {
     // Add roll numbers of absent students
     final absentStudents = scannedStudentData
         .where((student) => student['isPresent'] == false)
-        .map((student) => student['roll_number'])
+        .map((student) => student['register_number'])
         .toList();
 
     absentStudents.forEach((rollNumber) {
@@ -152,7 +144,7 @@ class _ReportPageState extends State<ReportPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Attendance View'),
+        title: const Text('Report'),
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_today),
@@ -162,10 +154,6 @@ class _ReportPageState extends State<ReportPage> {
       ),
       body: Column(
         children: [
-          // Loading Indicator
-          if (isLoading)
-            const Center(child: CircularProgressIndicator()),
-
           // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),

@@ -13,7 +13,7 @@ class DatabaseHelper {
     }
 
     final databasePath = await getDatabasesPath();
-    final path = join(databasePath, 'auditorium_attendance.db');
+    final path = join(databasePath, 'auditorium_attendance1.db');
 
     if (await databaseExists(path)) {
       _database = await openDatabase(path);
@@ -27,11 +27,12 @@ class DatabaseHelper {
 
   static Future<void> _copyDatabaseFromAssets(String path) async {
     try {
-      final ByteData data = await rootBundle.load('assets/auditorium_attendance.db');
+      final ByteData data = await rootBundle.load('assets/auditorium_attendance1.db');
       final List<int> bytes = data.buffer.asUint8List();
 
       await File(path).writeAsBytes(bytes);
     } catch (e) {
+      print("ERROR!!!!!");
       throw Exception("Failed to copy database: $e");
     }
   }
