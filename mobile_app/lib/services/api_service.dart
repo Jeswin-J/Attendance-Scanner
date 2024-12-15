@@ -26,7 +26,7 @@ class ApiService {
       if (e is http.ClientException) {
         return {
           'success': false,
-          'message': 'Network error occurred. Please check your connection.',
+          'message': e.message,
           'statusCode': -1,
           'data': null,
         };
