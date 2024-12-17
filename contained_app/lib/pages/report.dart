@@ -1,7 +1,9 @@
+import 'package:contained_app/pages/sync_attendance.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:contained_app/utils/database_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key});
@@ -56,9 +58,9 @@ class _ReportPageState extends State<ReportPage> {
     // Prepare the attendance report
     StringBuffer reportBuffer = StringBuffer();
 
-    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷');
-    reportBuffer.writeln('QSpider Attendance Details:');
-    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷');
+    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷🌷🌷');
+    reportBuffer.writeln('*QSpider Attendance Details*');
+    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷🌷🌷');
     reportBuffer.writeln();
     reportBuffer.writeln('Date                      : $formattedDate');
     reportBuffer.writeln('Department          : CSE');
@@ -67,30 +69,30 @@ class _ReportPageState extends State<ReportPage> {
     reportBuffer.writeln('No. of absentees : $absentCount');
     reportBuffer.writeln();
     reportBuffer.writeln('****************************');
-    reportBuffer.writeln('AUDITORIUM ABSENTEES');
+    reportBuffer.writeln('*AUDITORIUM ABSENTEES*');
     reportBuffer.writeln('****************************');
 
-    // Add roll numbers of absent students
-    final absentStudents = scannedStudentData
-        .where((student) => student['isPresent'] == false)
-        .map((student) => student['register_number'])
-        .toList();
+    // Group absentees by gender
+    final Map<String, List<String>> absenteesByGender = {};
 
-    absentStudents.forEach((rollNumber) {
-      reportBuffer.writeln(rollNumber);
+    for (final student in scannedStudentData.where((s) => s['isPresent'] == false)) {
+      final gender = student['gender'] == 'F' ? 'Girls' : 'Boys';
+      final rollNumber = student['register_number'] ?? 'Unknown';
+      absenteesByGender.putIfAbsent(gender, () => []).add(rollNumber);
+    }
+
+    // Add absentees list to the report grouped by gender
+    absenteesByGender.forEach((gender, rollNumbers) {
+      reportBuffer.writeln('\n$gender Absentees: *${rollNumbers.length}*\n');
+      for (final rollNumber in rollNumbers) {
+        reportBuffer.writeln(rollNumber);
+      }
     });
 
     return reportBuffer.toString();
   }
 
-  void _copyReportToClipboard() {
-    final report = _generateAttendanceReport();
-    Clipboard.setData(ClipboardData(text: report)).then((_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report copied to clipboard!')),
-      );
-    });
-  }
+
 
   // Apply Filters
   void _applyFilters() {
@@ -117,22 +119,14 @@ class _ReportPageState extends State<ReportPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  // Select Date
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(2024),
-      lastDate: DateTime.now(),
-    );
-    if (pickedDate != null && pickedDate != selectedDate) {
-      setState(() {
-        selectedDate = pickedDate;
-        formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
-      });
-      _fetchAttendanceData();
-    }
+  // Copy the report to clipboard
+  void _copyReportToClipboard() {
+    final report = _generateAttendanceReport();
+    Clipboard.setData(ClipboardData(text: report)).then((_) {
+      _showErrorMessage('Attendance report copied to clipboard!');
+    });
   }
+
 
   @override
   void initState() {
@@ -147,10 +141,10 @@ class _ReportPageState extends State<ReportPage> {
         title: const Text('Report'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_today),
-            onPressed: () => _selectDate(context),
-          ),
-        ],
+          icon: const Icon(Icons.copy),
+          tooltip: 'Copy Attendance Report',
+          onPressed: _copyReportToClipboard,
+        ),],
       ),
       body: Column(
         children: [
@@ -190,8 +184,37 @@ class _ReportPageState extends State<ReportPage> {
                 const Text('Show Absentees'),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.copy, color: Colors.blue),
-                  onPressed: _copyReportToClipboard,
+                  tooltip: "Share",
+                  icon: const Icon(Icons.share, color: Colors.blue),
+                  onPressed: () async {
+                    try {
+                      // Extract roll numbers of present students
+                      final presentStudents = scannedStudentData
+                          .where((student) => student['isPresent'] == true)
+                          .map((student) => student['roll_number'])
+                          .whereType<String>() // Ensures only non-null strings
+                          .toList();
+
+                      // Check if there are present students to share
+                      if (presentStudents.isEmpty) {
+                        _showErrorMessage('No present students to share.');
+                        return;
+                      }
+
+                      // Format roll numbers into a message
+                      final rollNumbers = presentStudents.join(', ');
+                      final smsMessage = Uri.encodeComponent(rollNumbers);
+
+                      // Launch SMS app with pre-filled message
+                      final smsUri = Uri.parse('sms:?body=$smsMessage');
+
+                      if (!await launchUrl(smsUri)) {
+                        _showErrorMessage('Could not launch SMS app.');
+                      }
+                    } catch (e) {
+                      _showErrorMessage('Error while sharing: $e');
+                    }
+                  },
                 ),
               ],
             ),
@@ -273,20 +296,20 @@ class _ReportPageState extends State<ReportPage> {
               itemBuilder: (context, index) {
                 final student = filteredData[index];
                 return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                  margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
                   elevation: 5,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(8),
                     child: Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
                       ),
                       child: ListTile(
                         titleAlignment: ListTileTitleAlignment.center,
-                        contentPadding: const EdgeInsets.all(16),
+                        contentPadding: const EdgeInsets.all(4),
                         title: Text(
                           student['name'] ?? 'No Name',
                           style: const TextStyle(
@@ -300,7 +323,7 @@ class _ReportPageState extends State<ReportPage> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 2),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
@@ -311,7 +334,7 @@ class _ReportPageState extends State<ReportPage> {
                                     color: Colors.black87,
                                   ),
                                 ),
-                                const SizedBox(width: 20),
+                                const SizedBox(width: 15),
                                 Text(
                                   '${student['year'] ?? 'N/A'} ${student['department'] ?? 'Unknown'} ${student['section'] ?? 'N/A'}',
                                   style: const TextStyle(
@@ -319,7 +342,7 @@ class _ReportPageState extends State<ReportPage> {
                                     color: Colors.black87,
                                   ),
                                 ),
-                                const SizedBox(width: 20),
+                                const SizedBox(width: 15),
                                 Flexible(
                                   child: Text(
                                     student['venue'] ?? 'Unknown Venue',
@@ -342,6 +365,30 @@ class _ReportPageState extends State<ReportPage> {
               },
             ),
           ),
+          // Add this after the ListView.builder widget
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.blue, // White text color
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold,
+                    fontSize: 16), // Bold text
+              ),
+              onPressed: () {
+                // Navigate to the SyncAttendancePage
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SyncAttendancePage(
+                    onAttendanceUpdated: _fetchAttendanceData,
+                  )),
+                );
+              },
+              child: const Text('Sync Attendance'),
+            ),
+          ),
+
         ],
       ),
     );
