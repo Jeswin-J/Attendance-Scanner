@@ -13,7 +13,7 @@ class DatabaseHelper {
     }
 
     final databasePath = await getDatabasesPath();
-    final path = join(databasePath, 'auditorium_attendance1.db');
+    final path = join(databasePath, 'qspiders_attendance.db');
 
     if (await databaseExists(path)) {
       _database = await openDatabase(path);
@@ -25,9 +25,37 @@ class DatabaseHelper {
     return _database!;
   }
 
+  // Fetch attendance data for a specific date, venue, and batch
+  static Future<List<Map<String, dynamic>>> getAttendanceByBatchAndVenue(String date, String batch, String venue) async {
+    final db = await _getDatabase();
+
+
+    String whereClause = 'date = ?';
+    List<String> whereArgs = [date];
+
+    // Apply venue and batch filter
+    if (venue.isNotEmpty) {
+      whereClause += ' AND venue = ?';
+      whereArgs.add(venue);
+    }
+
+    if (batch.isNotEmpty) {
+      whereClause += ' AND batch = ?';
+      whereArgs.add(batch);
+    }
+
+    // Query attendance with filters
+    return await db.query(
+      'attendance',
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+  }
+
+
   static Future<void> _copyDatabaseFromAssets(String path) async {
     try {
-      final ByteData data = await rootBundle.load('assets/auditorium_attendance1.db');
+      final ByteData data = await rootBundle.load('assets/qspiders_attendance.db');
       final List<int> bytes = data.buffer.asUint8List();
 
       await File(path).writeAsBytes(bytes);
@@ -36,6 +64,33 @@ class DatabaseHelper {
       throw Exception("Failed to copy database: $e");
     }
   }
+
+  static Future<List<Map<String, dynamic>>> getStudentsByBatchAndVenue(
+      String batch, String venue) async {
+    final db = await _getDatabase();
+    String whereClause;
+    List<dynamic> whereArgs;
+
+    print(venue);
+
+    if (venue.toLowerCase() == 'auditorium') {
+      // If the venue is 'auditorium', only filter by batch
+      whereClause = 'batch = ?';
+      whereArgs = [batch];
+    } else {
+      // For other venues, filter by both batch and venue
+      whereClause = 'batch = ? AND venue = ?';
+      whereArgs = [batch, venue];
+    }
+
+    return await db.query(
+      'student',
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+  }
+
+
 
   // Fetch student by roll number
   static Future<Map<String, dynamic>?> getStudentByRollNumber(String rollNumber) async {
@@ -63,7 +118,7 @@ class DatabaseHelper {
   }
 
   // Mark attendance for a student
-  static Future<void> markAttendance(String rollNumber) async {
+  static Future<void> markAttendance(String rollNumber, String batch, String venue) async {
     final student = await getStudentByRollNumber(rollNumber);
 
     if (student != null) {
@@ -83,6 +138,8 @@ class DatabaseHelper {
         await db.insert('attendance', {
           'roll_number': rollNumber,
           'date': date,
+          'batch': batch,
+          'venue': venue,
         });
       } else {
         throw Exception('Attendance already marked for today!');
@@ -91,6 +148,34 @@ class DatabaseHelper {
       throw Exception('Student not found: $rollNumber');
     }
   }
+
+  // Fetch absentees for a specific date
+  static Future<List<Map<String, dynamic>>> getAbsenteesByDate(String date) async {
+    final db = await _getDatabase();
+
+    // Fetch all students
+    final List<Map<String, dynamic>> allStudents = await db.query('student');
+
+    // Fetch students who are present (attendance marked)
+    final List<Map<String, dynamic>> presentStudents = await db.query(
+      'attendance',
+      where: 'date = ?',
+      whereArgs: [date],
+      columns: ['roll_number'], // Only fetch roll numbers for comparison
+    );
+
+    // Convert present roll numbers into a Set for faster lookup
+    final Set<String> presentRollNumbers =
+    presentStudents.map((e) => e['roll_number'] as String).toSet();
+
+    // Find absentees by filtering all students
+    final List<Map<String, dynamic>> absentees = allStudents
+        .where((student) => !presentRollNumbers.contains(student['roll_number']))
+        .toList();
+
+    return absentees;
+  }
+
 
   // Get all students (for listing or any other use case)
   static Future<List<Map<String, dynamic>>> getAllStudents() async {

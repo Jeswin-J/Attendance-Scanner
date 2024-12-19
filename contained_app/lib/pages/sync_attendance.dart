@@ -1,13 +1,13 @@
-import 'package:contained_app/service/attendance_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:contained_app/utils/database_helper.dart';
+import 'package:fluttertoast/fluttertoast.dart'; // Importing the fluttertoast package
+import 'package:contained_app/service/attendance_service.dart';
 
 class SyncAttendancePage extends StatefulWidget {
-  final Function onAttendanceUpdated; // Callback function to notify parent
+  final Function onAttendanceUpdated;
+  final String batch;
+  final String venue;
 
-  // Constructor accepts the callback function
-  const SyncAttendancePage({Key? key, required this.onAttendanceUpdated}) : super(key: key);
+  const SyncAttendancePage({Key? key, required this.onAttendanceUpdated, required this.batch, required this.venue}) : super(key: key);
 
   @override
   _SyncAttendancePageState createState() => _SyncAttendancePageState();
@@ -30,15 +30,16 @@ class _SyncAttendancePageState extends State<SyncAttendancePage> {
       final rollNumbers = _textController.text.split(',').map((rollNumber) => rollNumber.trim()).toList();
 
       if (rollNumbers.isEmpty) {
-        _showErrorMessage('Please enter at least one roll number.');
+        _showToast('Please enter at least one roll number.');
         return;
       }
 
       // Loop through each roll number to mark attendance
       for (String rollNumber in rollNumbers) {
         try {
+          rollNumber = '2022PECCS$rollNumber';
           // Assuming `markAttendanceForStudent` is the method in your DB helper to mark attendance
-          await AttendanceService.markStudentAttendance(rollNumber); // Adjust method signature if necessary
+          await AttendanceService.markStudentAttendance(rollNumber, widget.batch, widget.venue); // Adjust method signature if necessary
         } catch (e) {
           print("Error while marking attendance for $rollNumber: $e");
           continue; // Skip the student with an error
@@ -46,7 +47,7 @@ class _SyncAttendancePageState extends State<SyncAttendancePage> {
       }
 
       // Show a success message if attendance for all students is processed
-      _showSuccessMessage('Attendance synced successfully!');
+      _showToast('Attendance synced successfully!');
 
       // Pass success result to the previous page
       widget.onAttendanceUpdated(); // Update attendance on the parent page
@@ -54,7 +55,7 @@ class _SyncAttendancePageState extends State<SyncAttendancePage> {
 
     } catch (e) {
       print("Error during attendance sync: $e");
-      _showErrorMessage(e.toString()); // Show the error message from the exception
+      _showToast(e.toString()); // Show the error message from the exception
     } finally {
       setState(() {
         _isProcessing = false;
@@ -62,45 +63,16 @@ class _SyncAttendancePageState extends State<SyncAttendancePage> {
     }
   }
 
-  // Show success message
-  void _showSuccessMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Success'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Show error message
-  void _showErrorMessage(String message) {
-    setState(() {
-      _errorMessage = message; // Display the error message in the UI
-    });
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Error'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: Text('OK'),
-          ),
-        ],
-      ),
+  // Show toast message
+  void _showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT, // Show for a short time
+      gravity: ToastGravity.BOTTOM,    // Position the toast at the bottom
+      timeInSecForIosWeb: 1,          // Duration for iOS Web
+      backgroundColor: Colors.black,  // Toast background color
+      textColor: Colors.white,        // Toast text color
+      fontSize: 16.0,                 // Toast font size
     );
   }
 
@@ -145,7 +117,7 @@ class _SyncAttendancePageState extends State<SyncAttendancePage> {
                     backgroundColor: Colors.blue, // White text color
                     padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                     textStyle: const TextStyle(fontWeight: FontWeight.bold,
-                    fontSize: 16), // Bold text
+                        fontSize: 16), // Bold text
                   ),
                   child: const Text('Sync Attendance'),
                 ),

@@ -6,7 +6,11 @@ import 'package:contained_app/utils/database_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ReportPage extends StatefulWidget {
-  const ReportPage({super.key});
+
+  final String batch;
+  final String venue;
+
+  const ReportPage({super.key, required this.batch, required this.venue});
 
   @override
   State<ReportPage> createState() => _ReportPageState();
@@ -22,15 +26,17 @@ class _ReportPageState extends State<ReportPage> {
   int totalStrength = 0;
   int presentCount = 0;
   int absentCount = 0;
+  int venueStudentsCount = 0;
 
-  // Fetch Attendance Data from SQLite
   Future<void> _fetchAttendanceData() async {
 
     try {
       // Fetch all students
+      final List<Map<String, dynamic>> venueStudents = await DatabaseHelper.getStudentsByBatchAndVenue(widget.batch, widget.venue);
       final List<Map<String, dynamic>> students = await DatabaseHelper.getAllStudents();
 
       totalStrength = students.length;
+      venueStudentsCount = venueStudents.length;
 
       // Fetch attendance data for the selected date
       final List<Map<String, dynamic>> attendance = await DatabaseHelper.getAttendanceByDate(formattedDate);
@@ -58,39 +64,66 @@ class _ReportPageState extends State<ReportPage> {
     // Prepare the attendance report
     StringBuffer reportBuffer = StringBuffer();
 
-    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷🌷🌷');
-    reportBuffer.writeln('*QSpider Attendance Details*');
-    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷🌷🌷');
+    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷');
+    reportBuffer.writeln('QSpider Attendance Details:');
+    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷');
     reportBuffer.writeln();
-    reportBuffer.writeln('Date                      : $formattedDate');
-    reportBuffer.writeln('Department          : CSE');
+    reportBuffer.writeln('Date : $formattedDate');
+    reportBuffer.writeln('Department.         : CSE');
     reportBuffer.writeln('Total Strength      : $totalStrength');
     reportBuffer.writeln('No. of present      : $presentCount');
-    reportBuffer.writeln('No. of absentees : $absentCount');
+    reportBuffer.writeln('No. of absentees    : $absentCount');
     reportBuffer.writeln();
-    reportBuffer.writeln('****************************');
-    reportBuffer.writeln('*AUDITORIUM ABSENTEES*');
-    reportBuffer.writeln('****************************');
 
-    // Group absentees by gender
-    final Map<String, List<String>> absenteesByGender = {};
+    reportBuffer.writeln('**************************');
+    reportBuffer.writeln('Batch wise absentees details : ');
+    reportBuffer.writeln('**************************');
+
+    // Group absentees by batch and venue
+    final Map<String, Map<String, Map<String, List<String>>>> absenteesByBatchAndVenue = {};
 
     for (final student in scannedStudentData.where((s) => s['isPresent'] == false)) {
-      final gender = student['gender'] == 'F' ? 'Girls' : 'Boys';
+      final batch = student['batch'] ?? 'Unknown';
+      final venue = student['venue'] ?? 'Unknown';
       final rollNumber = student['register_number'] ?? 'Unknown';
-      absenteesByGender.putIfAbsent(gender, () => []).add(rollNumber);
+      final gender = student['gender'] == 'F' ? 'Girls' : 'Boys';
+
+      // Group by batch, venue, and gender
+      absenteesByBatchAndVenue.putIfAbsent(batch, () => {});
+      absenteesByBatchAndVenue[batch]?.putIfAbsent(venue, () => {'Boys': [], 'Girls': []});
+      absenteesByBatchAndVenue[batch]?[venue]?[gender]?.add(rollNumber);
     }
 
-    // Add absentees list to the report grouped by gender
-    absenteesByGender.forEach((gender, rollNumbers) {
-      reportBuffer.writeln('\n$gender Absentees: *${rollNumbers.length}*\n');
-      for (final rollNumber in rollNumbers) {
-        reportBuffer.writeln(rollNumber);
-      }
+    // Generate report for each batch-venue combination with gender-specific details
+    absenteesByBatchAndVenue.forEach((batch, venueMap) {
+      venueMap.forEach((venue, genderMap) {
+        reportBuffer.writeln();
+        reportBuffer.writeln('Batch $batch ($venue): *${(genderMap['Boys']?.length ?? 0) + (genderMap['Girls']?.length ?? 0)}*');
+
+        // Boys
+        final boys = genderMap['Boys'] ?? [];
+        if (boys.isNotEmpty) {
+          reportBuffer.writeln('\n  Boys : *${boys.length}*');
+          for (final rollNumber in boys) {
+            reportBuffer.writeln('    $rollNumber');
+          }
+        }
+
+        // Girls
+        final girls = genderMap['Girls'] ?? [];
+        if (girls.isNotEmpty) {
+          reportBuffer.writeln('\n  Girls : *${girls.length}*');
+          for (final rollNumber in girls) {
+            reportBuffer.writeln('    $rollNumber');
+          }
+        }
+      });
     });
 
     return reportBuffer.toString();
   }
+
+
 
 
 
@@ -101,17 +134,26 @@ class _ReportPageState extends State<ReportPage> {
       filteredData = scannedStudentData.where((student) {
         final matchesSearchQuery = searchQuery.isEmpty ||
             (student['name']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
-            (student['roll_number']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
+            (student['register_number']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
             (student['department']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
             (student['section']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
             (student['venue']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
 
-        final matchesAbsentees = showAbsenteesOnly ? student['isPresent'] == false : student['isPresent'] == true;
+        final matchesAbsentees = showAbsenteesOnly
+            ? student['isPresent'] == false &&
+            (widget.venue == 'Auditorium'
+                ? student['batch'] == widget.batch
+                : student['venue'] == widget.venue && student['batch'] == widget.batch)
+            : student['isPresent'] == true &&
+            (widget.venue == 'Auditorium'
+                ? student['batch'] == widget.batch
+                : student['venue'] == widget.venue && student['batch'] == widget.batch);
 
         return matchesSearchQuery && matchesAbsentees;
       }).toList();
     });
   }
+
 
 
   // Show Error Message
@@ -191,8 +233,8 @@ class _ReportPageState extends State<ReportPage> {
                       // Extract roll numbers of present students
                       final presentStudents = scannedStudentData
                           .where((student) => student['isPresent'] == true)
-                          .map((student) => student['roll_number'])
-                          .whereType<String>() // Ensures only non-null strings
+                          .map((student) => student['roll_number'].toString().substring(student['roll_number'].toString().length - 3))
+                          .whereType<String>()
                           .toList();
 
                       // Check if there are present students to share
@@ -215,6 +257,19 @@ class _ReportPageState extends State<ReportPage> {
                       _showErrorMessage('Error while sharing: $e');
                     }
                   },
+                ),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Batch ${widget.batch}, ${widget.venue}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -260,7 +315,7 @@ class _ReportPageState extends State<ReportPage> {
                         Column(
                           children: [
                             const Text(
-                              'Attendance %',
+                              'Total Strength',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.white70,
@@ -268,9 +323,7 @@ class _ReportPageState extends State<ReportPage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              totalStrength > 0
-                                  ? ((presentCount / totalStrength) * 100).toStringAsFixed(1)
-                                  : '0',
+                              venueStudentsCount.toString(),
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -328,7 +381,7 @@ class _ReportPageState extends State<ReportPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 Text(
-                                  student['roll_number'] ?? 'Unknown',
+                                  student['register_number'] ?? 'Unknown',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     color: Colors.black87,
@@ -381,6 +434,8 @@ class _ReportPageState extends State<ReportPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => SyncAttendancePage(
+                    batch: widget.batch,
+                    venue: widget.venue,
                     onAttendanceUpdated: _fetchAttendanceData,
                   )),
                 );
