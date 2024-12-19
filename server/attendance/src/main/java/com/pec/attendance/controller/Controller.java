@@ -100,7 +100,7 @@ public class Controller {
         );
     }
 
-    @PostMapping("/upload")
+    @PostMapping("/file/upload")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
             attendanceService.saveStudentsFromCsv(file);

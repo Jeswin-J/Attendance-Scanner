@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.29.111:8080';
+  static const String baseUrl = 'http://13.126.131.7:8080';
 
   static Future<Map<String, dynamic>> checkIn(String rollNumber) async {
     final url = Uri.parse('$baseUrl/checkIn');
@@ -26,7 +26,7 @@ class ApiService {
       if (e is http.ClientException) {
         return {
           'success': false,
-          'message': 'Network error occurred. Please check your connection.',
+          'message': e.message,
           'statusCode': -1,
           'data': null,
         };
