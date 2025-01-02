@@ -19,6 +19,7 @@ class ReportPage extends StatefulWidget {
 class _ReportPageState extends State<ReportPage> {
   DateTime selectedDate = DateTime.now();
   String formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  String reportDate =  DateFormat('dd-MM-yyyy').format(DateTime.now());
   String searchQuery = '';
   bool showAbsenteesOnly = false;
   List<Map<String, dynamic>> scannedStudentData = [];
@@ -28,6 +29,9 @@ class _ReportPageState extends State<ReportPage> {
   int absentCount = 0;
   int venueStudentsCount = 0;
 
+
+  final Map<String, Map<String, Map<String, int>>> totalStrengths = {};
+
   Future<void> _fetchAttendanceData() async {
 
     try {
@@ -35,8 +39,32 @@ class _ReportPageState extends State<ReportPage> {
       final List<Map<String, dynamic>> venueStudents = await DatabaseHelper.getStudentsByBatchAndVenue(widget.batch, widget.venue);
       final List<Map<String, dynamic>> students = await DatabaseHelper.getAllStudents();
 
+
       totalStrength = students.length;
       venueStudentsCount = venueStudents.length;
+
+      for (final student in students) {
+        final batch = student['batch'];
+        final venue = student['venue'];
+        final gender = student['gender'];
+
+        if (!totalStrengths.containsKey(batch)) {
+          totalStrengths[batch] = {};
+        }
+
+        if (!totalStrengths[batch]!.containsKey(venue)) {
+          totalStrengths[batch]![venue] = {'Boys': 0, 'Girls': 0};
+        }
+
+        if (gender == 'M') {
+          totalStrengths[batch]![venue]!['Boys'] =
+              (totalStrengths[batch]![venue]!['Boys'] ?? 0) + 1;
+        } else if (gender == 'F') {
+          totalStrengths[batch]![venue]!['Girls'] =
+              (totalStrengths[batch]![venue]!['Girls'] ?? 0) + 1;
+        }
+
+      }
 
       // Fetch attendance data for the selected date
       final List<Map<String, dynamic>> attendance = await DatabaseHelper.getAttendanceByDate(formattedDate);
@@ -44,12 +72,14 @@ class _ReportPageState extends State<ReportPage> {
       // List of present student roll numbers
       final Set<String> presentRollNumbers = attendance.map((entry) => entry['roll_number'] as String).toSet();
 
+
       // Determine present and absent students
       scannedStudentData = students.map((student) {
         final rollNumber = student['roll_number'] as String;
         final isPresent = presentRollNumbers.contains(rollNumber);
         return {...student, 'isPresent': isPresent};
       }).toList();
+
 
       presentCount = scannedStudentData.where((student) => student['isPresent'] == true).length;
       absentCount = totalStrength - presentCount;
@@ -61,23 +91,28 @@ class _ReportPageState extends State<ReportPage> {
   }
 
   String _generateAttendanceReport() {
+    String attendancePercent = ((presentCount / totalStrength) * 100).toStringAsFixed(2);
+
     // Prepare the attendance report
     StringBuffer reportBuffer = StringBuffer();
 
-    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷');
-    reportBuffer.writeln('QSpider Attendance Details:');
-    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷');
+    // Header Section
+    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷🌷🌷');
+    reportBuffer.writeln('*QSpider Attendance Details:*');
+    reportBuffer.writeln('🌷🌷🌷🌷🌷🌷🌷🌷🌷🌷');
     reportBuffer.writeln();
-    reportBuffer.writeln('Date : $formattedDate');
-    reportBuffer.writeln('Department.         : CSE');
-    reportBuffer.writeln('Total Strength      : $totalStrength');
+    reportBuffer.writeln('Date : $reportDate');
+    reportBuffer.writeln('Department          : CSE');
+    reportBuffer.writeln('Total Strength       : $totalStrength');
     reportBuffer.writeln('No. of present      : $presentCount');
-    reportBuffer.writeln('No. of absentees    : $absentCount');
+    reportBuffer.writeln('No. of absentees  : $absentCount');
+    reportBuffer.writeln('Attendance %       : $attendancePercent %');
     reportBuffer.writeln();
 
-    reportBuffer.writeln('**************************');
-    reportBuffer.writeln('Batch wise absentees details : ');
-    reportBuffer.writeln('**************************');
+    // Section for batch-wise details
+    reportBuffer.writeln('*******************************');
+    reportBuffer.writeln('Batch-wise absentees details:');
+    reportBuffer.writeln('*******************************');
 
     // Group absentees by batch and venue
     final Map<String, Map<String, Map<String, List<String>>>> absenteesByBatchAndVenue = {};
@@ -86,7 +121,7 @@ class _ReportPageState extends State<ReportPage> {
       final batch = student['batch'] ?? 'Unknown';
       final venue = student['venue'] ?? 'Unknown';
       final rollNumber = student['register_number'] ?? 'Unknown';
-      final gender = student['gender'] == 'F' ? 'Girls' : 'Boys';
+      final gender = (student['gender'] == 'F') ? 'Girls' : 'Boys';
 
       // Group by batch, venue, and gender
       absenteesByBatchAndVenue.putIfAbsent(batch, () => {});
@@ -94,25 +129,34 @@ class _ReportPageState extends State<ReportPage> {
       absenteesByBatchAndVenue[batch]?[venue]?[gender]?.add(rollNumber);
     }
 
-    // Generate report for each batch-venue combination with gender-specific details
+    // Generate report for each batch-venue combination
     absenteesByBatchAndVenue.forEach((batch, venueMap) {
       venueMap.forEach((venue, genderMap) {
         reportBuffer.writeln();
-        reportBuffer.writeln('Batch $batch ($venue): *${(genderMap['Boys']?.length ?? 0) + (genderMap['Girls']?.length ?? 0)}*');
 
-        // Boys
+        // Dynamically get total strength for the batch and venue
+        final batchVenueStrength = totalStrengths[batch]?[venue];
+        final totalBoysInVenue = batchVenueStrength?['Boys'] ?? 0;
+        final totalGirlsInVenue = batchVenueStrength?['Girls'] ?? 0;
+        final totalCombinedStrength = totalBoysInVenue + totalGirlsInVenue;
+
+        // Write combined absentees and total strength
+        reportBuffer.writeln(
+            'Batch $batch ($venue): *${(genderMap['Boys']?.length ?? 0) + (genderMap['Girls']?.length ?? 0)} / $totalCombinedStrength*');
+
+        // Boys Section
         final boys = genderMap['Boys'] ?? [];
         if (boys.isNotEmpty) {
-          reportBuffer.writeln('\n  Boys : *${boys.length}*');
+          reportBuffer.writeln('\n  Boys : *${boys.length} / $totalBoysInVenue*');
           for (final rollNumber in boys) {
             reportBuffer.writeln('    $rollNumber');
           }
         }
 
-        // Girls
+        // Girls Section
         final girls = genderMap['Girls'] ?? [];
         if (girls.isNotEmpty) {
-          reportBuffer.writeln('\n  Girls : *${girls.length}*');
+          reportBuffer.writeln('\n  Girls : *${girls.length} / $totalGirlsInVenue*');
           for (final rollNumber in girls) {
             reportBuffer.writeln('    $rollNumber');
           }
@@ -120,9 +164,10 @@ class _ReportPageState extends State<ReportPage> {
       });
     });
 
+    print(totalStrengths);
+
     return reportBuffer.toString();
   }
-
 
 
 
