@@ -38,7 +38,7 @@ public class Controller {
 
     @PostMapping("/checkIn")
     public synchronized ResponseEntity<Response<Attendance>> checkIn(@RequestBody MarkAttendanceRequest request){
-
+        System.out.println("HERE!!");
         if(attendanceService.hasAttendanceForToday(request.getRollNumber())){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                     new Response<Attendance>()
@@ -74,6 +74,8 @@ public class Controller {
     public ResponseEntity<Response<List<Student>>> viewRecordByDate(@PathVariable("date") String dateString){
         LocalDate date = LocalDate.parse(dateString, formatter);
         List<Student> studentsList = attendanceService.attendanceRecord(date);
+
+        System.out.println("HERE");
 
         return ResponseEntity.status(HttpStatus.OK).body(
                 new Response<List<Student>>()
