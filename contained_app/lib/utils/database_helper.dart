@@ -125,7 +125,7 @@ class DatabaseHelper {
       // If student exists, insert attendance record
       final db = await _getDatabase();
       final DateTime now = DateTime.now();
-      final String date = "${now.year}-${now.month}-${now.day}";
+      final String date = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
       // Check if attendance for this student already exists for today
       final existingAttendance = await db.query(
