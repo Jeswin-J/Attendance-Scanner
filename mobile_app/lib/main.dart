@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'pages/scan_id.dart';
-import 'pages/view_attendance.dart';
 
 void main() {
   runApp(const MyApp());

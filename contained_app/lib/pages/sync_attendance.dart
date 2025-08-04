@@ -7,7 +7,7 @@ class SyncAttendancePage extends StatefulWidget {
   final String batch;
   final String venue;
 
-  const SyncAttendancePage({Key? key, required this.onAttendanceUpdated, required this.batch, required this.venue}) : super(key: key);
+  const SyncAttendancePage({super.key, required this.onAttendanceUpdated, required this.batch, required this.venue});
 
   @override
   _SyncAttendancePageState createState() => _SyncAttendancePageState();
@@ -80,7 +80,7 @@ class _SyncAttendancePageState extends State<SyncAttendancePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Sync Attendance'),
+        title: const Text('Sync Attendance'),
       ),
       body: SingleChildScrollView( // Wrap the body with SingleChildScrollView to avoid overflow
         child: Padding(
@@ -93,7 +93,7 @@ class _SyncAttendancePageState extends State<SyncAttendancePage> {
                 style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 10),
-              Container(
+              SizedBox(
                 height: MediaQuery.of(context).size.height * 0.35, // Takes up 40% of the screen height
                 child: TextField(
                   controller: _textController,

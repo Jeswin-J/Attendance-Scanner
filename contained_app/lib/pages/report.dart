@@ -56,10 +56,10 @@ class _ReportPageState extends State<ReportPage> {
           totalStrengths[batch]![venue] = {'Boys': 0, 'Girls': 0};
         }
 
-        if (gender == 'M') {
+        if (gender == 'MALE') {
           totalStrengths[batch]![venue]!['Boys'] =
               (totalStrengths[batch]![venue]!['Boys'] ?? 0) + 1;
-        } else if (gender == 'F') {
+        } else if (gender == 'FEMALE') {
           totalStrengths[batch]![venue]!['Girls'] =
               (totalStrengths[batch]![venue]!['Girls'] ?? 0) + 1;
         }
@@ -121,7 +121,7 @@ class _ReportPageState extends State<ReportPage> {
       final batch = student['batch'] ?? 'Unknown';
       final venue = student['venue'] ?? 'Unknown';
       final rollNumber = student['register_number'] ?? 'Unknown';
-      final gender = (student['gender'] == 'F') ? 'Girls' : 'Boys';
+      final gender = (student['gender'] == 'FEMALE') ? 'Girls' : 'Boys';
 
       // Group by batch, venue, and gender
       absenteesByBatchAndVenue.putIfAbsent(batch, () => {});
@@ -180,8 +180,8 @@ class _ReportPageState extends State<ReportPage> {
         final matchesSearchQuery = searchQuery.isEmpty ||
             (student['name']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
             (student['register_number']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
-            (student['department']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
-            (student['section']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
+            // (student['department']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
+            // (student['section']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false) ||
             (student['venue']?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false);
 
         final matchesAbsentees = showAbsenteesOnly
@@ -432,14 +432,14 @@ class _ReportPageState extends State<ReportPage> {
                                     color: Colors.black87,
                                   ),
                                 ),
-                                const SizedBox(width: 15),
-                                Text(
-                                  '${student['year'] ?? 'N/A'} ${student['department'] ?? 'Unknown'} ${student['section'] ?? 'N/A'}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black87,
-                                  ),
-                                ),
+                                // const SizedBox(width: 15),
+                                // Text(
+                                //   '${student['year'] ?? 'N/A'} ${student['department'] ?? 'Unknown'} ${student['section'] ?? 'N/A'}',
+                                //   style: const TextStyle(
+                                //     fontSize: 16,
+                                //     color: Colors.black87,
+                                //   ),
+                                // ),
                                 const SizedBox(width: 15),
                                 Flexible(
                                   child: Text(
