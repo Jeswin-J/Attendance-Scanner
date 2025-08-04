@@ -125,11 +125,6 @@ class _ScannerPageState extends State<ScannerPage> {
     );
   }
 
-
-
-
-
-
   // Function to animate the scanning line
   void _startScanningLineEffect() {
     Future.doWhile(() async {

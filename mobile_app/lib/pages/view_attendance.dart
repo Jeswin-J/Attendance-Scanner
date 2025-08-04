@@ -30,17 +30,13 @@ class _ViewAttendancePageState extends State<ViewAttendancePage> {
 
     try {
       final response = await ApiService.fetchAttendance(formattedDate);
-      if (response != null) {
-        setState(() {
-          scannedStudentData = response;
-          presentCount = response.length;
-          absentCount = totalStrength - presentCount;
-          _applyFilters();
-        });
-      } else {
-        _showErrorMessage('No data found.');
-      }
-    } catch (e) {
+      setState(() {
+        scannedStudentData = response;
+        presentCount = response.length;
+        absentCount = totalStrength - presentCount;
+        _applyFilters();
+      });
+        } catch (e) {
       _showErrorMessage('Error: $e');
     } finally {
       setState(() {

@@ -1,6 +1,6 @@
 // This is a generated file; do not edit or check into version control.
-FLUTTER_ROOT=C:\flutter
-FLUTTER_APPLICATION_PATH=C:\Users\Jeswin Joseph J\PEC Attendance Scanner\Attendance-Scanner\contained_app
+FLUTTER_ROOT=C:\Users\prith\Flutter\flutter
+FLUTTER_APPLICATION_PATH=C:\Attendance_app_git\Attendance-Scanner\contained_app
 COCOAPODS_PARALLEL_CODE_SIGN=true
 FLUTTER_TARGET=lib\main.dart
 FLUTTER_BUILD_DIR=build

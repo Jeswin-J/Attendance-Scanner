@@ -63,10 +63,6 @@ class _ScanIdPageState extends State<ScanIdPage> {
   void _addScanResult(String code) async {
     try {
       final responseData = await ApiService.checkIn(code);
-      if (responseData == null) {
-        _showToast("No response from the server");
-        return;
-      }
 
       final statusCode = responseData['statusCode'] ?? -1;
       final message = responseData['message'] ?? "Unknown error";
@@ -142,7 +138,7 @@ class _ScanIdPageState extends State<ScanIdPage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent, // Transparent background
                       shadowColor: Colors.transparent, // No shadow
-                      side: BorderSide(color: Colors.green), // Green border
+                      side: const BorderSide(color: Colors.green), // Green border
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6.0), // Rounded button
                       ),
@@ -189,7 +185,7 @@ class _ScanIdPageState extends State<ScanIdPage> {
           SingleChildScrollView(
             child: Column(
               children: [
-                Container(
+                SizedBox(
                   height: MediaQuery.of(context).size.height * 4 / 5,
                   child: MobileScanner(
                     controller: cameraController,
